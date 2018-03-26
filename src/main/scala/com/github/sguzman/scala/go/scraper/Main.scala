@@ -2,13 +2,13 @@ package com.github.sguzman.scala.go.scraper
 
 import java.net.SocketTimeoutException
 
-import io.circe.syntax._
-import io.circe.parser.decode
 import io.circe.generic.auto._
+import io.circe.parser.decode
+import io.circe.syntax._
 import net.ruippeixotog.scalascraper.browser.{Browser, JsoupBrowser}
 import net.ruippeixotog.scalascraper.dsl.DSL.Extract._
 import net.ruippeixotog.scalascraper.dsl.DSL._
-import scalaj.http.{Http, HttpRequest, HttpResponse}
+import scalaj.http.Http
 
 import scala.collection.mutable
 import scala.io.Source
@@ -17,10 +17,21 @@ import scala.util.{Failure, Success}
 object Main {
   def host(a: String) = s"https://gogoanime.se$a"
 
-  def retry(http: HttpRequest): HttpResponse[String] = util.Try(http.asString) match {
+  def http(cache: mutable.HashMap[String, String], url: String) = {
+    if (cache.contains(url)) cache(url)
+    else {
+      val body = Http(url).asString.body
+      cache.put(url, body)
+      body
+    }
+  }
+
+  def httpReq(cache: mutable.HashMap[String, String], url: String): Browser#DocumentType = util.Try{
+    JsoupBrowser().parseString(http(cache, url))
+  } match {
     case Success(v) => v
     case Failure(e) => e match {
-      case _: SocketTimeoutException => retry(http)
+      case _: SocketTimeoutException => httpReq(cache, url)
     }
   }
 
@@ -40,32 +51,38 @@ object Main {
     pw.close()
   }
 
+  val cache: mutable.HashMap[String, AnimeStream] =
+    util.Try(decode[mutable.HashMap[String, AnimeStream]](Source.fromFile("./items.json").getLines.mkString("\n")).right.get) match {
+      case Success(v) => v
+      case Failure(_) =>
+        write("./items.json", "{}")
+        mutable.HashMap()
+    }
+
+  val httpCache: mutable.HashMap[String, String] =
+    util.Try(decode[mutable.HashMap[String,String]](Source.fromFile("./items.data").getLines.mkString("\n")).right.get) match {
+      case Success(v) => v
+      case Failure(_) =>
+        write("./items.data", "{}")
+        mutable.HashMap()
+    }
+
+  Runtime.getRuntime.addShutdownHook(new Thread {
+    override def run(): Unit = {
+      write("./items.json", cache.asJson.spaces4)
+      write("./items.data", httpCache.asJson.noSpaces)
+    }
+  })
+
   def main(args: Array[String]): Unit = {
-    val cache: mutable.HashMap[String, AnimeStream] =
-      util.Try(decode[mutable.HashMap[String, AnimeStream]](Source.fromFile("./items.json").getLines.mkString("\n")).right.get) match {
-        case Success(v) => v
-        case Failure(e) =>
-          write("./items.json", "{}")
-          mutable.HashMap()
-      }
-
-    Runtime.getRuntime.addShutdownHook(new Thread {
-      override def run(): Unit =
-        write("./items.json", cache.asJson.spaces4)
-    })
-
-
     val pages = 1 to 1
     val anime = pages
       .par
       .flatMap{a =>
         List(a)
           .map(_.toString)
-          .map(a => s"https://gogoanime.se/anime-list.html?page=$a")
-          .map(Http.apply)
-          .map(retry)
-          .map(_.body)
-          .map(JsoupBrowser().parseString)
+          .map(b => s"https://gogoanime.se/anime-list.html?page=$b")
+          .map(b => httpReq(httpCache, b))
           .flatMap(_ >> elementList("div.anime_list_body > ul > li > a"))
           .map(_.attr("href"))
       }
@@ -77,10 +94,7 @@ object Main {
         .flatMap{a =>
           List(a)
             .map(host)
-            .map(Http.apply)
-            .map(retry)
-            .map(_.body)
-            .map(JsoupBrowser().parseString)
+            .map(b => httpReq(httpCache, b))
             .filter(hasEps)
             .map(b => AnimeMeta(a,
               b.>>(element("div.anime_info_body_bg > h1")).text,
@@ -97,10 +111,7 @@ object Main {
       .flatMap{a =>
         List(a)
           .map(url)
-          .map(Http.apply)
-          .map(retry)
-          .map(_.body)
-          .map(JsoupBrowser().parseString)
+          .map(b => httpReq(httpCache, b))
           .map(b => b.>>(elementList("a[href]")))
           .map(b => b.map(_.attr("href").trim))
           .map(b => AnimeEps(a, b.reverse))
@@ -111,12 +122,9 @@ object Main {
     val rawVidStream = eps
       .map{a =>
         AnimeHash(a, a.eps
-              .map(c => s"https://gogoanime.se$c")
-              .map(Http.apply)
-              .map(retry)
-              .map(_.body)
-              .map(JsoupBrowser().parseString)
-              .map(c => c.>>(element("div.download-anime > a[href]")))
+              .map(b => s"https://gogoanime.se$b")
+              .map(b => httpReq(httpCache, b))
+              .map(b => b.>>(element("div.download-anime > a[href]")))
               .map(_.attr("href"))
               .map(_.trim)
         )
@@ -127,10 +135,7 @@ object Main {
     val vids = rawVidStream
       .map{a =>
         val stream = AnimeStream(a, a.vids
-          .map(Http.apply)
-          .map(retry)
-          .map(_.body)
-          .map(JsoupBrowser().parseString)
+          .map(b => httpReq(httpCache, b))
           .map(b => b.>>(element("div.dowload > a[href]")))
           .map(_.attr("href"))
         )
@@ -139,5 +144,7 @@ object Main {
         println(stream.asJson.spaces4)
         stream
       }
+
+    println(vids.toList.asJson.spaces4)
   }
 }
