@@ -46,7 +46,7 @@ object Main {
           .map(_.attr("href"))
       }
 
-    println(anime.toList.asJson)
+    println(anime.toList.asJson.spaces4)
 
     val meta = anime
         .flatMap{a =>
@@ -66,7 +66,7 @@ object Main {
             ))
         }
 
-    println(meta.toList.asJson)
+    println(meta.toList.asJson.spaces4)
 
     val eps = meta
       .flatMap{a =>
@@ -78,23 +78,39 @@ object Main {
           .map(JsoupBrowser().parseString)
           .map(b => b.>>(elementList("a[href]")))
           .map(b => b.map(_.attr("href").trim))
-          .map(b => AnimeEps(a, b))
+          .map(b => AnimeEps(a, b.reverse))
       }
 
-    println(eps.toList.asJson)
+    println(eps.toList.asJson.spaces4)
 
-    eps
-      .flatMap{a =>
-        List(a)
-          .flatMap(_.eps)
-          .map(b => s"https://gogoanime.se$b")
+    val rawVidStream = eps
+      .map{a =>
+        AnimeHash(a, a.eps
+              .map(c => s"https://gogoanime.se$c")
+              .map(Http.apply)
+              .map(retry)
+              .map(_.body)
+              .map(JsoupBrowser().parseString)
+              .map(c => c.>>(element("div.download-anime > a[href]")))
+              .map(_.attr("href"))
+              .map(_.trim)
+        )
+      }
+
+    println(rawVidStream.toList.asJson.spaces4)
+
+    val vids = rawVidStream
+      .map{a =>
+        AnimeStream(a, a.vids
           .map(Http.apply)
           .map(retry)
           .map(_.body)
           .map(JsoupBrowser().parseString)
-          .map(b => b.>>(element("div.download-anime > a[href]")))
+          .map(b => b.>>(element("div.dowload > a[href]")))
           .map(_.attr("href"))
+        )
       }
-      .foreach(println)
+
+    println(vids.toList.asJson.spaces4)
   }
 }
