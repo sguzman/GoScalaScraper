@@ -3,12 +3,15 @@ package com.github.sguzman.scala.go.scraper
 import java.net.SocketTimeoutException
 
 import io.circe.syntax._
+import io.circe.parser.decode
 import io.circe.generic.auto._
 import net.ruippeixotog.scalascraper.browser.{Browser, JsoupBrowser}
 import net.ruippeixotog.scalascraper.dsl.DSL.Extract._
 import net.ruippeixotog.scalascraper.dsl.DSL._
 import scalaj.http.{Http, HttpRequest, HttpResponse}
 
+import scala.collection.mutable
+import scala.io.Source
 import scala.util.{Failure, Success}
 
 object Main {
@@ -30,7 +33,28 @@ object Main {
   def url(animeMeta: AnimeMeta) =
     s"https://gogoanime.se/load-list-episode?ep_start=${animeMeta.start}&ep_end=${animeMeta.end}&id=${animeMeta.id}"
 
+  def write(file: String, data: String): Unit = {
+    import java.io._
+    val pw = new PrintWriter(new File(file))
+    pw.write(data)
+    pw.close()
+  }
+
   def main(args: Array[String]): Unit = {
+    val cache: mutable.HashMap[String, AnimeStream] =
+      util.Try(decode[mutable.HashMap[String, AnimeStream]](Source.fromFile("./items.json").getLines.mkString("\n")).right.get) match {
+        case Success(v) => v
+        case Failure(e) =>
+          write("./items.json", "{}")
+          mutable.HashMap()
+      }
+
+    Runtime.getRuntime.addShutdownHook(new Thread {
+      override def run(): Unit =
+        write("./items.json", cache.asJson.spaces4)
+    })
+
+
     val pages = 1 to 1
     val anime = pages
       .par
@@ -45,6 +69,7 @@ object Main {
           .flatMap(_ >> elementList("div.anime_list_body > ul > li > a"))
           .map(_.attr("href"))
       }
+      .filter(a => !cache.contains(a))
 
     println(anime.toList.asJson.spaces4)
 
@@ -101,7 +126,7 @@ object Main {
 
     val vids = rawVidStream
       .map{a =>
-        AnimeStream(a, a.vids
+        val stream = AnimeStream(a, a.vids
           .map(Http.apply)
           .map(retry)
           .map(_.body)
@@ -109,8 +134,10 @@ object Main {
           .map(b => b.>>(element("div.dowload > a[href]")))
           .map(_.attr("href"))
         )
-      }
 
-    println(vids.toList.asJson.spaces4)
+        cache.put(stream.animeHash.animeEps.anime.animeUrl, stream)
+        println(cache.asJson.spaces4)
+        stream
+      }
   }
 }
