@@ -11,7 +11,7 @@ version := "1.0"
 logLevel := util.Level.Debug
 
 /** Scala version */
-scalaVersion := "2.12.5"
+scalaVersion := "2.12.4"
 
 /** Scalac parameters */
 scalacOptions ++= Seq("-feature", "-unchecked", "-deprecation", "-encoding", "utf8")
