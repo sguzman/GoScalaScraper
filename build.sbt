@@ -33,7 +33,9 @@ resolvers ++= Seq(
 libraryDependencies ++= Seq(
   "net.ruippeixotog" %% "scala-scraper" % "2.1.0",
   "org.scalaj" %% "scalaj-http" % "2.3.0",
-  "io.reactivex" %% "rxscala" % "0.26.5"
+  "io.circe" %% "circe-core" % "0.9.2",
+  "io.circe" %% "circe-parser" % "0.9.2",
+  "io.circe" %% "circe-generic" % "0.9.2"
 )
 
 /** Make sure to fork on run */
