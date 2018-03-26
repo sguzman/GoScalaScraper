@@ -136,7 +136,7 @@ object Main {
         )
 
         cache.put(stream.animeHash.animeEps.anime.animeUrl, stream)
-        println(cache.asJson.spaces4)
+        println(stream.asJson.spaces4)
         stream
       }
   }
