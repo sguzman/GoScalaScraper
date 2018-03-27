@@ -157,6 +157,7 @@ object Main {
             stream
           }
 
+        write("./items.json", cache.asJson.spaces4)
         println(vids.toList.asJson.spaces4)
       }
     }
