@@ -83,21 +83,22 @@ object Main {
 
   def main(args: Array[String]): Unit = {
     val pages = 1 to 40
-    val anime = pages
-      .par
-      .flatMap{a =>
-        List(a)
-          .map(_.toString)
-          .map(b => s"https://gogoanime.se/anime-list.html?page=$b")
-          .map(httpReq)
-          .flatMap(_ >> elementList("div.anime_list_body > ul > li > a"))
-          .map(_.attr("href"))
-      }
-      .filter(a => !cache.contains(a))
+    pages.par.foreach{i =>
+      val anime = List(i)
+        .par
+        .flatMap{a =>
+          List(a)
+            .map(_.toString)
+            .map(b => s"https://gogoanime.se/anime-list.html?page=$b")
+            .map(httpReq)
+            .flatMap(_ >> elementList("div.anime_list_body > ul > li > a"))
+            .map(_.attr("href"))
+        }
+        .filter(a => !cache.contains(a))
 
-    println(anime.toList.asJson.spaces4)
+      println(anime.toList.asJson.spaces4)
 
-    val meta = anime
+      val meta = anime
         .flatMap{a =>
           List(a)
             .map(host)
@@ -112,50 +113,51 @@ object Main {
             ))
         }
 
-    if (meta.isEmpty) {
-      System.exit(0)
+      if (meta.isEmpty) {
+        System.exit(0)
+      }
+
+      println(meta.toList.asJson.spaces4)
+
+      val eps = meta
+        .flatMap{a =>
+          List(a)
+            .map(url)
+            .map(httpReq)
+            .map(b => b.>>(elementList("a[href]")))
+            .map(b => b.map(_.attr("href").trim))
+            .map(b => AnimeEps(a, b.reverse))
+        }
+
+      println(eps.toList.asJson.spaces4)
+
+      val rawVidStream = eps
+        .map{a =>
+          AnimeHash(a, a.eps
+            .map(b => s"https://gogoanime.se$b")
+            .map(httpReq)
+            .map(b => b.>>(element("div.download-anime > a[href]")))
+            .map(_.attr("href"))
+            .map(_.trim)
+          )
+        }
+
+      println(rawVidStream.toList.asJson.spaces4)
+
+      val vids = rawVidStream
+        .map{a =>
+          val stream = AnimeStream(a, a.vids
+            .map(httpReq)
+            .map(b => b.>>(element("div.dowload > a[href]")))
+            .map(_.attr("href"))
+          )
+
+          cache.put(stream.animeHash.animeEps.anime.animeUrl, stream)
+          println(stream.asJson.spaces4)
+          stream
+        }
+
+      println(vids.toList.asJson.spaces4)
     }
-
-    println(meta.toList.asJson.spaces4)
-
-    val eps = meta
-      .flatMap{a =>
-        List(a)
-          .map(url)
-          .map(httpReq)
-          .map(b => b.>>(elementList("a[href]")))
-          .map(b => b.map(_.attr("href").trim))
-          .map(b => AnimeEps(a, b.reverse))
-      }
-
-    println(eps.toList.asJson.spaces4)
-
-    val rawVidStream = eps
-      .map{a =>
-        AnimeHash(a, a.eps
-              .map(b => s"https://gogoanime.se$b")
-              .map(httpReq)
-              .map(b => b.>>(element("div.download-anime > a[href]")))
-              .map(_.attr("href"))
-              .map(_.trim)
-        )
-      }
-
-    println(rawVidStream.toList.asJson.spaces4)
-
-    val vids = rawVidStream
-      .map{a =>
-        val stream = AnimeStream(a, a.vids
-          .map(httpReq)
-          .map(b => b.>>(element("div.dowload > a[href]")))
-          .map(_.attr("href"))
-        )
-
-        cache.put(stream.animeHash.animeEps.anime.animeUrl, stream)
-        println(stream.asJson.spaces4)
-        stream
-      }
-
-    println(vids.toList.asJson.spaces4)
   }
 }
