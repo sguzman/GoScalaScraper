@@ -112,6 +112,10 @@ object Main {
             ))
         }
 
+    if (meta.isEmpty) {
+      System.exit(0)
+    }
+
     println(meta.toList.asJson.spaces4)
 
     val eps = meta
