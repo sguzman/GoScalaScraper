@@ -145,8 +145,11 @@ object Main {
           .map{a =>
             val stream = AnimeStream(a, a.vids
               .map(httpReq)
-              .map(b => b.>>(element("div.dowload > a[href]")))
-              .map(_.attr("href"))
+              .map(b => util.Try(b.>>(element("div.dowload > a[href]"))) match {
+                case Success(v) => Some(v)
+                case Failure(_) => None
+              })
+              .map(b => if (b.isDefined) b.get.attr("href") else "")
             )
 
             cache.put(stream.animeHash.animeEps.anime.animeUrl, stream)
