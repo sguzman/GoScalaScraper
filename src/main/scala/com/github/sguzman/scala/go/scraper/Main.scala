@@ -83,7 +83,7 @@ object Main {
 
   def main(args: Array[String]): Unit = {
     val pages = 1 to 40
-    pages.par.foreach{i =>
+    pages.foreach{i =>
       val anime = List(i)
         .par
         .flatMap{a =>
