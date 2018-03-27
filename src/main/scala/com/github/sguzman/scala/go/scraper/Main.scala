@@ -164,7 +164,11 @@ object Main {
           }
 
         write("./items.json", cache.asJson.spaces4)
-        httpCache.remove(0)
+
+        httpCache(i).clear()
+        httpCache.put(i, mutable.HashMap())
+        httpCache.remove(i)
+
         println(vids.toList.asJson.spaces4)
       }
     }
