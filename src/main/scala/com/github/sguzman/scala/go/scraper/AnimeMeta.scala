@@ -6,5 +6,5 @@ case class AnimeMeta(
   img: String,
   id: Int,
   start: Int,
-  end: Int
+  end: String
 )

@@ -108,7 +108,7 @@ object Main {
               b.>>(element("div.anime_info_body_bg > img")).attr("src"),
               b.>>(element("#movie_id")).attr("value").toInt,
               b.>>(element("#episode_page > li > a")).attr("ep_start").toInt,
-              b.>>(element("#episode_page > li > a")).attr("ep_end").toInt
+              b.>>(element("#episode_page > li > a")).attr("ep_end")
             ))
         }
 
