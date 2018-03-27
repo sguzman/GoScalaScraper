@@ -15,20 +15,24 @@ import scala.io.Source
 import scala.util.{Failure, Success}
 
 object Main {
-  val cache: mutable.HashMap[String, AnimeStream] =
-    util.Try(decode[mutable.HashMap[String, AnimeStream]](Source.fromFile("./items.json").getLines.mkString("\n")).right.get) match {
+  type mMap[A,B] = mutable.HashMap[A,B]
+
+  val cache: mMap[String, AnimeStream] =
+    util.Try(decode[mMap[String, AnimeStream]](Source.fromFile("./items.json").getLines.mkString("\n")).right.get) match {
       case Success(v) => v
       case Failure(_) =>
         write("./items.json", "{}")
-        mutable.HashMap()
+        mutable.HashMap[String,AnimeStream]()
     }
 
-  val httpCache: mutable.HashMap[String, String] =
-    util.Try(decode[mutable.HashMap[String,String]](Source.fromFile("./items.data").getLines.mkString).right.get) match {
+  type nmMap[A,B,C] = mMap[A, mMap[B, C]]
+
+  val httpCache: nmMap[Int, String, String] =
+    util.Try(decode[nmMap[Int, String, String]](Source.fromFile("./items.data").getLines.mkString).right.get) match {
       case Success(v) => v
       case Failure(_) =>
         write("./items.data", "{}")
-        mutable.HashMap()
+        mutable.HashMap[Int, mutable.HashMap[String,String]]()
     }
 
   def write(file: String, data: String): Unit = {
@@ -54,21 +58,21 @@ object Main {
 
   def host(a: String) = s"https://gogoanime.se$a"
 
-  def http(url: String) = {
-    if (httpCache.contains(url)) httpCache(url)
+  def http(num: Int, url: String) = {
+    if (httpCache(num).contains(url)) httpCache(num)(url)
     else {
       val body = Http(url).asString.body
-      httpCache.put(url, body)
+      httpCache(num).put(url, body)
       body
     }
   }
 
-  def httpReq(url: String): Browser#DocumentType = util.Try{
-    JsoupBrowser().parseString(http(url))
+  def httpReq(num: Int, url: String): Browser#DocumentType = util.Try{
+    JsoupBrowser().parseString(http(num, url))
   } match {
     case Success(v) => v
     case Failure(e) => e match {
-      case _: SocketTimeoutException => httpReq(url)
+      case _: SocketTimeoutException => httpReq(num, url)
     }
   }
 
@@ -84,13 +88,15 @@ object Main {
   def main(args: Array[String]): Unit = {
     val pages = 1 to 40
     pages.foreach{i =>
+      httpCache.put(i, mutable.HashMap())
+
       val anime = List(i)
         .par
         .flatMap{a =>
           List(a)
             .map(_.toString)
             .map(b => s"https://gogoanime.se/anime-list.html?page=$b")
-            .map(httpReq)
+            .map(b => httpReq(i, b))
             .flatMap(_ >> elementList("div.anime_list_body > ul > li > a"))
             .map(_.attr("href"))
         }
@@ -102,7 +108,7 @@ object Main {
         .flatMap{a =>
           List(a)
             .map(host)
-            .map(httpReq)
+            .map(b => httpReq(i, b))
             .filter(hasEps)
             .map(b => AnimeMeta(a,
               b.>>(element("div.anime_info_body_bg > h1")).text,
@@ -120,7 +126,7 @@ object Main {
           .flatMap{a =>
             List(a)
               .map(url)
-              .map(httpReq)
+              .map(b => httpReq(i, b))
               .map(b => b.>>(elementList("a[href]")))
               .map(b => b.map(_.attr("href").trim))
               .map(b => AnimeEps(a, b.reverse))
@@ -132,7 +138,7 @@ object Main {
           .map{a =>
             AnimeHash(a, a.eps
               .map(b => s"https://gogoanime.se$b")
-              .map(httpReq)
+              .map(b => httpReq(i, b))
               .map(b => b.>>(element("div.download-anime > a[href]")))
               .map(_.attr("href"))
               .map(_.trim)
@@ -144,7 +150,7 @@ object Main {
         val vids = rawVidStream
           .map{a =>
             val stream = AnimeStream(a, a.vids
-              .map(httpReq)
+              .map(b => httpReq(i, b))
               .map(b => util.Try(b.>>(element("div.dowload > a[href]"))) match {
                 case Success(v) => Some(v)
                 case Failure(_) => None
@@ -158,6 +164,7 @@ object Main {
           }
 
         write("./items.json", cache.asJson.spaces4)
+        httpCache.remove(0)
         println(vids.toList.asJson.spaces4)
       }
     }
