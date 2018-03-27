@@ -82,7 +82,7 @@ object Main {
     s"https://gogoanime.se/load-list-episode?ep_start=${animeMeta.start}&ep_end=${animeMeta.end}&id=${animeMeta.id}"
 
   def main(args: Array[String]): Unit = {
-    val pages = 1 to 1
+    val pages = 1 to 40
     val anime = pages
       .par
       .flatMap{a =>
