@@ -74,8 +74,6 @@ object Main {
   }
 
   def main(args: Array[String]): Unit = {
-    val s = ""
-    val doc = JsoupBrowser().parseString(s)
     val pages = 1 to 40
     val animes = pages.par.flatMap{a =>
       type Ret = List[String]
