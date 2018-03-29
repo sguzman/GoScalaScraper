@@ -90,11 +90,10 @@ object Main {
   def main(args: Array[String]): Unit = {
     val pages = 1 to 40
     val animes = pages.par.flatMap{a =>
-      type Ret = List[String]
+      def proc(doc: Browser#DocumentType): String =
+        doc.>>(elementList(".anime_list_body > .listing > li > a[href]")).map(_.attr("href")).asJson.toString
 
-      val proc: Browser#DocumentType => String =
-        doc => doc.>>(elementList(".anime_list_body > .listing > li > a[href]")).map(_.attr("href")).asJson.toString
-      val dec: String => Ret = s => decode[Ret](s).right.get
+      def dec(s: String): List[String] = decode[List[String]](s).right.get
       cascade(s"https://gogoanime.se/anime-list.html?page=$a", proc, dec)
     }
 
