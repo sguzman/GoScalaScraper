@@ -178,8 +178,15 @@ object Main {
       .foreach(httpCache.remove)
 
     val episodePage = episodes.flatMap{a =>
-      def proc(doc: Browser#DocumentType): String =
-        doc.>>(elementList(".anime_muti_link > ul > li[class] > a[data-video]")).map(_.attr("data-video")).asJson.spaces4
+      def proc(doc: Browser#DocumentType): String = {
+        val vids = doc.>>(elementList(".anime_muti_link > ul > li[class] > a[data-video]"))
+        if (vids.isEmpty) {
+          httpCache.remove(s"https://gogoanime.se${a.link}")
+          throw new Exception(s"Received empty vid collection with ${a.link}")
+        }
+
+        vids.map(_.attr("data-video")).asJson.spaces4
+      }
 
       def dec(s: String) = decode[List[String]](s).right.get
 
