@@ -161,7 +161,7 @@ object Main {
               val doc2 = JsoupBrowser().parseString(b.innerHtml)
               Episode(
                 doc2.>>(element(".name")).text.trim.split(" ").last,
-                b.attr("href"),
+                b.attr("href").trim,
                 doc2.>>(element(".cate")).text
               )
             }.asJson.spaces4
