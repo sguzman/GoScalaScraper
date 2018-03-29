@@ -75,6 +75,7 @@ object Main {
       case Success(v) => v.body
       case Failure(e) => e match {
         case _: SocketTimeoutException => retry
+        case _ => throw new Exception(url)
       }
     }
     httpCache.put(url, retry)
