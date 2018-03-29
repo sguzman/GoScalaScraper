@@ -135,13 +135,7 @@ object Main {
       }
 
       def dec(s: String): Anime = decode[Anime](s).right.get
-      try {
-        cascade(s"https://gogoanime.se$a", proc, dec)
-      } catch {
-        case e: Throwable =>
-          println(a)
-          throw e
-      }
+      cascade(s"https://gogoanime.se$a", proc, dec)
     }
   }
 }
