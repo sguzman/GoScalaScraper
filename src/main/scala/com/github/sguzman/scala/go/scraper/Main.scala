@@ -175,5 +175,18 @@ object Main {
       .filter(_.start.isDefined)
       .map(a => s"https://gogoanime.se/load-list-episode?ep_start=${a.start.get}&ep_end=${a.end.get}&id=${a.id}")
       .foreach(httpCache.remove)
+
+    val episodePage = episodes.flatMap{a =>
+      def proc(doc: Browser#DocumentType): String =
+        doc.>>(elementList(".anime_muti_link > ul > li[class] > a[data-video]")).map(_.attr("data-video")).asJson.spaces4
+
+      def dec(s: String) = decode[List[String]](s).right.get
+
+      cascade(s"https://gogoanime.se${a.link}", proc, dec)
+    }
+
+    episodes
+      .map(a => s"https://gogoanime.se${a.link}")
+      .foreach(httpCache.remove)
   }
 }
