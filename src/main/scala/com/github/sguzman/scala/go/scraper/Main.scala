@@ -114,7 +114,7 @@ object Main {
         val typesValues = doc.>>(elementList(".anime_info_body_bg > .type")).map(_.text)
         val textNodes = Map(types.zip(typesValues).map(a => a._1 -> a._2.stripPrefix(a._1).trim.stripPrefix(":").trim): _*)
 
-        val ani = Anime(
+        Anime(
           doc.>>(element(".anime_info_body_bg > h1")).text,
           doc.>>(element(".anime_info_body_bg > img")).attr("src"),
           textNodes("Type"),
@@ -125,13 +125,11 @@ object Main {
           doc.>>(element("#movie_id[value]")).attr("value").toInt,
           for {
             start <- doc.>?>(element("#episode_page > li > a[ep_start]"))
-          } yield start.text,
+          } yield start.attr("ep_start"),
           for {
             end <- doc.>?>(element("#episode_page > li > a[ep_end]"))
-          } yield end.text
-        )
-
-        ani.asJson.spaces4
+          } yield end.attr("ep_end")
+        ).asJson.spaces4
       }
 
       def dec(s: String): Anime = decode[Anime](s).right.get
