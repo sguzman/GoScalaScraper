@@ -32,7 +32,8 @@ libraryDependencies ++= Seq(
   "org.scalaj" %% "scalaj-http" % "2.3.0",
   "io.circe" %% "circe-core" % "0.9.2",
   "io.circe" %% "circe-parser" % "0.9.2",
-  "io.circe" %% "circe-generic" % "0.9.2"
+  "io.circe" %% "circe-generic" % "0.9.2",
+  "pl.newicom" %% "schale" % "1.0.2"
 )
 
 /** Make sure to fork on run */
