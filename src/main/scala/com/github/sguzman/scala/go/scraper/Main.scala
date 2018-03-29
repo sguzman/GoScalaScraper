@@ -77,13 +77,15 @@ object Main {
     val s = ""
     val doc = JsoupBrowser().parseString(s)
     val pages = 1 to 40
-    println(pages.par.flatMap{a =>
+    val animes = pages.par.flatMap{a =>
       type Ret = List[String]
 
       val proc: Browser#DocumentType => String =
         doc => doc.>>(elementList(".anime_list_body > .listing > li > a[href]")).map(_.attr("href")).asJson.toString
       val dec: String => Ret = s => decode[Ret](s).right.get
       cascade(s"https://gogoanime.se/anime-list.html?page=$a", proc, dec)
-    })
+    }
+
+    println(animes)
   }
 }
