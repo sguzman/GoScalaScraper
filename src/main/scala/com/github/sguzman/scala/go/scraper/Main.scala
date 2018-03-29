@@ -1,5 +1,7 @@
 package com.github.sguzman.scala.go.scraper
 
+import java.net.SocketTimeoutException
+
 import io.circe.parser.decode
 import io.circe.syntax._
 import io.circe.generic.auto._
@@ -71,7 +73,9 @@ object Main {
   def get[A](url: String, proc: Browser#DocumentType => String, dec: String => A, newKey: String => Unit = println) = {
     def retry: String = util.Try(Http(url).asString) match {
       case Success(v) => v.body
-      case Failure(_) => retry
+      case Failure(e) => e match {
+        case _: SocketTimeoutException => retry
+      }
     }
     httpCache.put(url, retry)
     getHttpCache(url, proc, dec)
