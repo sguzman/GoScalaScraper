@@ -94,6 +94,10 @@ object Main {
       cascade(s"https://gogoanime.se/anime-list.html?page=$a", proc, dec)
     }
 
+    pages
+      .map(a => s"https://gogoanime.se/anime-list.html?page=$a")
+      .foreach(httpCache.remove)
+
     println(animes.toList.asJson.toString)
 
     final case class Anime(
@@ -135,5 +139,38 @@ object Main {
       def dec(s: String): Anime = decode[Anime](s).right.get
       cascade(s"https://gogoanime.se$a", proc, dec)
     }
+
+    animes
+      .map(a => s"https://gogoanime.se$a")
+      .foreach(httpCache.remove)
+
+    final case class Episode(
+                                title: String,
+                                link: String,
+                                `type`: String
+                                )
+    val episodes = animePage
+        .filter(_.start.isDefined)
+        .flatMap{a =>
+          def proc(doc: Browser#DocumentType): String = {
+            doc.>>(elementList("#episode_related > li > a[href]")).map{b =>
+              val doc2 = JsoupBrowser().parseString(b.innerHtml)
+              Episode(
+                doc2.>>(element(".name")).text.trim.split(" ").last,
+                b.attr("href"),
+                doc2.>>(element(".cate")).text
+              )
+            }.asJson.spaces4
+          }
+
+          def dec(s: String) = decode[List[Episode]](s).right.get
+
+          cascade(s"https://gogoanime.se/load-list-episode?ep_start=${a.start.get}&ep_end=${a.end.get}&id=${a.id}", proc, dec)
+        }
+
+    animePage
+      .filter(_.start.isDefined)
+      .map(a => s"https://gogoanime.se/load-list-episode?ep_start=${a.start.get}&ep_end=${a.end.get}&id=${a.id}")
+      .foreach(httpCache.remove)
   }
 }
